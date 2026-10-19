@@ -30,17 +30,36 @@ jobs:
         run: |
           mkdir proyecto
           unzip CuToolsAndroid_proyecto.zip -d proyecto
-          find proyecto -name settings.gradle.kts -print
+
+      - name: Corregir destino Java y Kotlin
+        run: |
+          python3 - <<'PY'
+          import glob
+          paths = glob.glob('proyecto/**/app/build.gradle.kts', recursive=True)
+          if not paths:
+              raise SystemExit("No se encontró app/build.gradle.kts")
+          p = paths[0]
+          with open(p, encoding='utf-8') as f:
+              s = f.read()
+          block = '''android {
+              compileOptions {
+                  sourceCompatibility = JavaVersion.VERSION_17
+                  targetCompatibility = JavaVersion.VERSION_17
+              }
+              kotlinOptions {
+                  jvmTarget = "17"
+              }
+          '''
+          if 'compileOptions' not in s:
+              s = s.replace('android {', block, 1)
+          with open(p, 'w', encoding='utf-8') as f:
+              f.write(s)
+          print("Configuración Java/Kotlin corregida:", p)
+          PY
 
       - name: Compilar APK
         run: |
           PROJECT_DIR="$(dirname "$(find proyecto -name settings.gradle.kts -print -quit)")"
-          if [ -z "$PROJECT_DIR" ] || [ ! -f "$PROJECT_DIR/app/build.gradle.kts" ]; then
-            echo "No se encontró la carpeta raíz del proyecto Android."
-            find proyecto -maxdepth 4 -type f
-            exit 1
-          fi
-          echo "Compilando desde: $PROJECT_DIR"
           cd "$PROJECT_DIR"
           gradle assembleDebug
 
