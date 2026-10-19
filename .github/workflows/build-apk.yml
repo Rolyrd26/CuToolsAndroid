@@ -21,6 +21,11 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Preparar Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
       - name: Descomprimir proyecto
         run: |
           mkdir proyecto
@@ -29,11 +34,19 @@ jobs:
 
       - name: Compilar APK
         run: |
-          cd proyecto
+          PROJECT_DIR="$(dirname "$(find proyecto -name settings.gradle.kts -print -quit)")"
+          if [ -z "$PROJECT_DIR" ] || [ ! -f "$PROJECT_DIR/app/build.gradle.kts" ]; then
+            echo "No se encontró la carpeta raíz del proyecto Android."
+            find proyecto -maxdepth 4 -type f
+            exit 1
+          fi
+          echo "Compilando desde: $PROJECT_DIR"
+          cd "$PROJECT_DIR"
           gradle assembleDebug
 
       - name: Guardar APK
         uses: actions/upload-artifact@v4
         with:
           name: CuTools-APK
-          path: proyecto/app/build/outputs/apk/debug/app-debug.apk
+          path: proyecto/**/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
